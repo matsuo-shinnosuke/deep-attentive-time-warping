@@ -1,0 +1,9 @@
+matplotlib 
+opencv-python 
+scikit-learn
+seaborn
+tqdm
+torchinfo
+tslearn
+fastdtw
+autopep8

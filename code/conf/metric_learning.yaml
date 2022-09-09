@@ -1,0 +1,31 @@
+dataset:
+    ID: 1
+    used_dataset_threshold:
+        num_train_data: 100
+        length_data: 1000
+    standardization: True
+    train_val_split_ration_train: 0.9
+    metric_learning: True
+    max_train_data: 1000
+
+seed: 0
+result_path: '/'
+dataset_path: '../dataset/'
+device: 'cuda:0'
+
+pre_training: True
+lr: 0.0001
+batch_size: 8
+cal_batch_size: True
+num_workers: 2
+positive_ration: 1
+negative_ration: 2
+epoch: 20
+train_loader_balance: True
+train_iteration: 500
+sample_train_data: True
+tau: 1
+kNN_k: 3
+
+test_only: False
+
