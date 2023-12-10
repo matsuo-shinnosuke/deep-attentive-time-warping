@@ -1,1 +1,0 @@
-from .proposed import ProposedModel

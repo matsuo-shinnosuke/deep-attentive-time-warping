@@ -1,8 +1,77 @@
-""" Parts of the U-Net model """
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+
+class BipartiteAttention(nn.Module):
+    def __init__(self, input_ch):
+        super().__init__()
+        self.unet = UNet(n_channels=input_ch*2, n_classes=1)
+
+    def forward(self, data1, data2):
+        pred_path = self.unet(outer_concatenation(data1, data2))
+        return pred_path.squeeze(1)
+
+class ContrastiveLoss():
+    def __init__(self, tau):
+        self.tau = tau
+
+    def __call__(self, pred_path, data1, data2, match):
+        pred_path_t = pred_path.transpose(1, 2)
+        pred_path = F.softmax(pred_path, dim=2)
+        pred_path_t = F.softmax(pred_path_t, dim=2)
+        g_data2 = torch.matmul(pred_path_t, data1)
+        g_data1 = torch.matmul(pred_path, data2)
+
+        dist1 = (data1 - g_data1).pow(2).view(data1.size(0), -1).mean(dim=1)
+        dist2 = (data2 - g_data2).pow(2).view(data2.size(0), -1).mean(dim=1)
+
+        loss1 = (match*dist1+(1-match)*F.relu(self.tau-dist1)).mean()
+        loss2 = (match*dist2+(1-match)*F.relu(self.tau-dist2)).mean()
+
+        return (loss1+loss2)/2, (dist1+dist2)/2
+    
+def outer_concatenation(x, y):
+    y_expand = y.unsqueeze(1)
+    x_expand = x.unsqueeze(2)
+    y_repeat = y_expand.repeat(1, y_expand.shape[2], 1, 1)
+    x_repeat = x_expand.repeat(1, 1, x_expand.shape[1], 1)
+    outer_concat = torch.cat((x_repeat, y_repeat), 3)
+    return outer_concat.permute(0, 3, 1, 2).contiguous()
+
+
+class UNet(nn.Module):
+    def __init__(self, n_channels, n_classes, bilinear=True):
+        super(UNet, self).__init__()
+        self.n_channels = n_channels
+        self.n_classes = n_classes
+        self.bilinear = bilinear
+
+        self.inc = DoubleConv(n_channels, 64)
+        self.down1 = Down(64, 128)
+        self.down2 = Down(128, 256)
+        self.down3 = Down(256, 512)
+        factor = 2 if bilinear else 1
+        self.down4 = Down(512, 1024 // factor)
+        self.up1 = Up(1024, 512 // factor, bilinear)
+        self.up2 = Up(512, 256 // factor, bilinear)
+        self.up3 = Up(256, 128 // factor, bilinear)
+        self.up4 = Up(128, 64, bilinear)
+        self.outc = OutConv(64, n_classes)
+
+    def forward(self, x):
+        x1 = self.inc(x)
+        x2 = self.down1(x1)
+        x3 = self.down2(x2)
+        x4 = self.down3(x3)
+        x5 = self.down4(x4)
+        x = self.up1(x5, x4)
+        x = self.up2(x, x3)
+        x = self.up3(x, x2)
+        x = self.up4(x, x1)
+        logits = self.outc(x)
+        return logits
+
 
 
 class DoubleConv(nn.Module):
