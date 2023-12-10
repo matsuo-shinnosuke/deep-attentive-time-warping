@@ -191,7 +191,7 @@ class DATW():
 
         self.best_model = self.best_model.to(self.device)
         X1, X2 = X1.to(self.device), X2.to(self.device)
-        pred_path = model(X1, X2)
+        pred_path = self.best_model(X1, X2)
         pred_path_t = pred_path.transpose(1, 2)
         pred_path = F.softmax(pred_path, dim=2)
         pred_path_t = F.softmax(pred_path_t, dim=2)
